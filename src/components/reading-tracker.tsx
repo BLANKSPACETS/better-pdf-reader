@@ -151,7 +151,7 @@ export function ReadingTracker({ isOpen, onClose, stats, currentSessionFn, isPau
                             stiffness: 300,
                             damping: 30
                         }}
-                        className="relative bg-popover shadow-2xl border border-border overflow-hidden group text-foreground"
+                        className="relative bg-background shadow-2xl border border-border overflow-hidden group text-foreground"
                     >
                         {/* --------------------------------------------------------------------------------
                             COLLAPSED STATE: The Mechanical Dial
@@ -253,7 +253,7 @@ export function ReadingTracker({ isOpen, onClose, stats, currentSessionFn, isPau
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={onTogglePause}
-                                                className="w-10 h-10 border border-border hover:border-red-500 hover:bg-red-500/10 rounded-full flex items-center justify-center transition-all active:scale-95 group/btn bg-popover"
+                                                className="w-10 h-10 border border-border hover:border-red-500 hover:bg-red-500/10 rounded-full flex items-center justify-center transition-all active:scale-95 group/btn bg-background"
                                                 title={isPaused ? "Resume" : "Pause"}
                                             >
                                                 {isPaused ? (
