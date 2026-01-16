@@ -109,7 +109,7 @@ export function PdfProvider({ children }: { children: ReactNode }) {
         refreshDocuments();
     }, [refreshDocuments]);
 
-    // Flush last page on tab close/refresh
+    // Flush last page on tab close/refresh/hide
     useEffect(() => {
         const handleBeforeUnload = () => {
             const { currentDocument, currentPage } = stateRef.current;
@@ -119,8 +119,22 @@ export function PdfProvider({ children }: { children: ReactNode }) {
             }
         };
 
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "hidden") {
+                const { currentDocument, currentPage } = stateRef.current;
+                if (currentDocument) {
+                    console.log("[PDF Provider] visibilitychange (hidden): flushing page", currentPage, "for doc", currentDocument.id);
+                    flushLastPage(currentDocument.id, currentPage);
+                }
+            }
+        };
+
         window.addEventListener("beforeunload", handleBeforeUnload);
-        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
     }, []);
 
     // Upload document
