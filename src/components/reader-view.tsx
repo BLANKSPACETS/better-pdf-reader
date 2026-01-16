@@ -21,6 +21,9 @@ import {
     CommandIcon,
     MoreVerticalIcon,
     ChartHistogramIcon,
+    Clock01Icon,
+    BookOpen01Icon,
+    FlashIcon,
 } from "@hugeicons/core-free-icons";
 import {
     DropdownMenu,
@@ -32,13 +35,37 @@ import {
     DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import type { PagesPerView } from "@/components/pdf-viewer";
+import type { ReadingSession, AnalyticsDashboard } from "@/hooks/use-reading-stats";
 
 interface ReaderViewProps {
     onMenuClick?: () => void;
     onShowStats?: () => void;
+    currentStats?: ReadingSession;
+    dashboard?: AnalyticsDashboard;
 }
 
-export function ReaderView({ onMenuClick, onShowStats }: ReaderViewProps) {
+export function ReaderView({ onMenuClick, onShowStats, currentStats, dashboard }: ReaderViewProps) {
+    // State for live stats updates
+    const [elapsed, setElapsed] = useState(0);
+
+    // Use dashboard weekly data if available, otherwise default
+    const weeklyData = dashboard?.weeklyData ?? [0, 0, 0, 0, 0, 0, 0];
+    const maxVal = Math.max(...weeklyData, 1); // Avoid division by zero
+
+    // Update elapsed time for stats display
+    useEffect(() => {
+        if (!currentStats) return;
+        const update = () => {
+            const val = typeof currentStats.totalDuration === "function"
+                ? currentStats.totalDuration()
+                : currentStats.totalDuration;
+            setElapsed(val);
+        };
+
+        update();
+        const timer = setInterval(update, 1000);
+        return () => clearInterval(timer);
+    }, [currentStats]);
     const {
         currentDocument,
         currentPdf,
@@ -109,24 +136,128 @@ export function ReaderView({ onMenuClick, onShowStats }: ReaderViewProps) {
     };
 
     if (!currentPdf || !currentDocument) {
+        // Format lifetime reading time
+        const formatLifetimeTime = (ms: number) => {
+            const totalMinutes = Math.floor(ms / 60000);
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            if (hours > 0) return `${hours}h ${minutes}m`;
+            return `${minutes}m`;
+        };
+
         return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-background relative overflow-hidden">
+            <div className="flex-1 flex flex-col bg-background relative overflow-hidden">
                 <div className="absolute inset-0 bg-[radial-gradient(currentColor_1px,transparent_1px)] [background-size:20px_20px] opacity-[0.03] pointer-events-none" />
 
-                <div className="text-center space-y-6 z-10">
-                    <div className="w-16 h-16 mx-auto border border-border rounded-full flex items-center justify-center bg-secondary/50">
-                        <HugeiconsIcon icon={FileScriptIcon} size={24} className="text-muted-foreground" />
-                    </div>
-                    <div className="space-y-2">
+                <div className="flex-1 flex flex-col items-center justify-center z-10 p-8">
+                    {/* Header */}
+                    <div className="text-center mb-12">
                         <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-red-500">
                             System_Idle
                         </span>
-                        <h2 className="text-2xl font-bold text-foreground tracking-tight uppercase">
-                            No_Document_Loaded
+                        <h2 className="text-3xl font-bold text-foreground tracking-tight uppercase mt-2">
+                            Intelligence_Hub
                         </h2>
-                        <p className="text-xs text-muted-foreground font-mono tracking-wide max-w-[280px] mx-auto">
-                            SELECT A FILE FROM THE LIBRARY TO INITIALIZE READER
+                        <p className="text-xs text-muted-foreground font-mono tracking-wide max-w-[320px] mx-auto mt-2">
+                            SELECT A FILE FROM THE LIBRARY TO BEGIN READING
                         </p>
+                    </div>
+
+                    {/* Stats Dashboard - Lifetime Stats */}
+                    <div className="w-full max-w-2xl space-y-6">
+                        {/* Lifetime Stats Row */}
+                        <div className="grid grid-cols-4 gap-4">
+                            {/* Total Reading Time */}
+                            <div className="p-5 border border-border bg-secondary/20 rounded-sm group hover:border-red-500/50 transition-all">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-8 h-8 border border-border rounded-full flex items-center justify-center group-hover:border-red-500 group-hover:text-red-500 transition-colors">
+                                        <HugeiconsIcon icon={Clock01Icon} size={16} />
+                                    </div>
+                                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono">Total Time</span>
+                                </div>
+                                <div className="text-xl font-mono font-bold text-foreground tracking-tight">
+                                    {formatLifetimeTime(dashboard?.totalLifetimeReadingMs ?? 0)}
+                                </div>
+                            </div>
+
+                            {/* Total Pages Read */}
+                            <div className="p-5 border border-border bg-secondary/20 rounded-sm group hover:border-red-500/50 transition-all">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-8 h-8 border border-border rounded-full flex items-center justify-center group-hover:border-red-500 group-hover:text-red-500 transition-colors">
+                                        <HugeiconsIcon icon={BookOpen01Icon} size={16} />
+                                    </div>
+                                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono">Pages</span>
+                                </div>
+                                <div className="text-xl font-mono font-bold text-foreground tracking-tight">
+                                    {dashboard?.totalLifetimePagesRead ?? 0}
+                                </div>
+                            </div>
+
+                            {/* Total Sessions */}
+                            <div className="p-5 border border-border bg-secondary/20 rounded-sm group hover:border-red-500/50 transition-all">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-8 h-8 border border-border rounded-full flex items-center justify-center group-hover:border-red-500 group-hover:text-red-500 transition-colors">
+                                        <HugeiconsIcon icon={FlashIcon} size={16} />
+                                    </div>
+                                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono">Sessions</span>
+                                </div>
+                                <div className="text-xl font-mono font-bold text-foreground tracking-tight">
+                                    {dashboard?.totalLifetimeSessions ?? 0}
+                                </div>
+                            </div>
+
+                            {/* Current Streak */}
+                            <div className="p-5 border border-border bg-secondary/20 rounded-sm group hover:border-red-500/50 transition-all">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-8 h-8 border border-border rounded-full flex items-center justify-center group-hover:border-red-500 group-hover:text-red-500 transition-colors">
+                                        <HugeiconsIcon icon={ChartHistogramIcon} size={16} />
+                                    </div>
+                                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono">Streak</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-xl font-mono font-bold text-foreground tracking-tight">
+                                        {dashboard?.currentStreak ?? 0}
+                                    </span>
+                                    <span className="text-[9px] text-muted-foreground uppercase">days</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Weekly Activity Chart */}
+                        <div className="p-6 border border-border bg-secondary/10 rounded-sm">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-[10px] text-muted-foreground uppercase tracking-[0.15em] font-mono font-bold">Weekly_Activity</span>
+                                <span className="text-[9px] text-muted-foreground font-mono">MINUTES READ</span>
+                            </div>
+                            <div className="h-24 flex items-end gap-3">
+                                {weeklyData.map((val, i) => (
+                                    <div key={i} className="flex-1 flex flex-col justify-end gap-1 group">
+                                        <div
+                                            className="w-full bg-foreground/20 group-hover:bg-red-500 transition-colors relative min-h-[4px] rounded-t-sm"
+                                            style={{ height: `${(val / maxVal) * 100}%` }}
+                                        >
+                                            <div className="opacity-0 group-hover:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-[9px] font-mono bg-foreground text-background px-1.5 py-0.5 rounded transform transition-all">
+                                                {val}m
+                                            </div>
+                                        </div>
+                                        <span className="text-[9px] text-center text-muted-foreground font-mono uppercase">
+                                            {['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="flex items-center justify-center gap-4 pt-4">
+                            <button
+                                onClick={onShowStats}
+                                className="flex items-center gap-2 px-4 py-2 border border-border hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all text-xs font-mono uppercase tracking-wide text-muted-foreground"
+                            >
+                                <HugeiconsIcon icon={ChartHistogramIcon} size={14} />
+                                <span>View Full Stats</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

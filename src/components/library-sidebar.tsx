@@ -15,9 +15,11 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { LiveSessionStats } from "@/hooks/use-reading-stats";
 
 interface LibrarySidebarProps {
     onDocumentOpen?: () => void;
+    currentStats?: LiveSessionStats;
 }
 
 export function LibrarySidebar({ onDocumentOpen }: LibrarySidebarProps) {

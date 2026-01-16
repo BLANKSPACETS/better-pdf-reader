@@ -6,7 +6,7 @@ import { PdfProvider, usePdf } from "@/components/providers/pdf-provider";
 import { LibrarySidebar } from "@/components/library-sidebar";
 import { ReaderView } from "@/components/reader-view";
 import { CommandPalette, useCommandPalette } from "@/components/command-palette";
-import { useReadingStats } from "@/hooks/use-reading-stats";
+import { useReadingAnalytics } from "@/hooks/use-reading-stats";
 import { ReadingTracker } from "@/components/reading-tracker";
 
 function useMediaQuery(query: string) {
@@ -44,8 +44,8 @@ function PdfReaderAppContent() {
     const commandPalette = useCommandPalette();
     const isDesktop = useMediaQuery("(min-width: 1024px)");
 
-    // Reading stats
-    const readingStats = useReadingStats();
+    // Reading analytics (includes live stats + persisted dashboard data)
+    const readingAnalytics = useReadingAnalytics();
 
     // Automatically open sidebar when no document is selected
     useEffect(() => {
@@ -57,12 +57,12 @@ function PdfReaderAppContent() {
     // Handle keyboard shortcut for pausing timer
     useEffect(() => {
         const handleToggleTimer = () => {
-            readingStats.togglePause();
+            readingAnalytics.togglePause();
         };
 
         window.addEventListener("toggle-reading-timer", handleToggleTimer);
         return () => window.removeEventListener("toggle-reading-timer", handleToggleTimer);
-    }, [readingStats]);
+    }, [readingAnalytics]);
 
     const sidebarVariants = {
         mobile: {
@@ -93,7 +93,10 @@ function PdfReaderAppContent() {
                     variants={sidebarVariants}
                 >
                     <div className="w-80 h-full">
-                        <LibrarySidebar onDocumentOpen={() => setSidebarOpen(false)} />
+                        <LibrarySidebar
+                            onDocumentOpen={() => setSidebarOpen(false)}
+                            currentStats={readingAnalytics.stats}
+                        />
                     </div>
                 </motion.div>
 
@@ -113,7 +116,9 @@ function PdfReaderAppContent() {
                 {/* Main content */}
                 <ReaderView
                     onMenuClick={() => setSidebarOpen(true)}
-                    onShowStats={() => readingStats.setIsOpen(true)}
+                    onShowStats={() => readingAnalytics.setIsOpen(true)}
+                    currentStats={readingAnalytics.stats}
+                    dashboard={readingAnalytics.dashboard}
                 />
             </div>
 
@@ -121,17 +126,17 @@ function PdfReaderAppContent() {
             <CommandPalette
                 open={commandPalette.open}
                 onClose={commandPalette.onClose}
-                onShowStats={() => readingStats.setIsOpen(true)}
+                onShowStats={() => readingAnalytics.setIsOpen(true)}
             />
 
             {/* Reading Stats Overlay */}
             <ReadingTracker
-                isOpen={readingStats.isOpen}
-                onClose={() => readingStats.setIsOpen(false)}
-                stats={readingStats.stats}
-                currentSessionFn={readingStats.stats.totalDuration as () => number}
-                isPaused={readingStats.isPaused}
-                onTogglePause={readingStats.togglePause}
+                isOpen={readingAnalytics.isOpen}
+                onClose={() => readingAnalytics.setIsOpen(false)}
+                stats={readingAnalytics.stats}
+                currentSessionFn={readingAnalytics.stats.totalDuration as () => number}
+                isPaused={readingAnalytics.isPaused}
+                onTogglePause={readingAnalytics.togglePause}
             />
         </>
     );
