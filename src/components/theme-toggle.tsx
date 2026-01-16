@@ -2,7 +2,7 @@
 
 import { useTheme } from "better-themes";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Sun01Icon, Moon01Icon, ComputerIcon } from "@hugeicons/core-free-icons";
+import { Sun01Icon, Moon02Icon, ComputerIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
@@ -25,7 +25,7 @@ export function ThemeToggle() {
 
     const themes = [
         { name: "light", icon: Sun01Icon, label: "L" },
-        { name: "dark", icon: Moon01Icon, label: "D" },
+        { name: "dark", icon: Moon02Icon, label: "D" },
         { name: "system", icon: ComputerIcon, label: "A" },
     ] as const;
 
