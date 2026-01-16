@@ -13,6 +13,7 @@ import {
     Menu01Icon,
     CheckmarkCircle02Icon,
     Brain01Icon,
+    GridViewIcon,
 } from "@hugeicons/core-free-icons";
 
 interface ReaderViewProps {
@@ -25,9 +26,11 @@ export function ReaderView({ onMenuClick }: ReaderViewProps) {
         currentPdf,
         currentPage,
         totalPages,
+        pagesPerView,
         goToPage,
         nextPage,
         prevPage,
+        setPagesPerView,
         copyPageAsMarkdown,
         copyDocumentAsMarkdown,
         closeDocument,
@@ -183,12 +186,47 @@ export function ReaderView({ onMenuClick }: ReaderViewProps) {
                         </div>
                     </div>
 
+                    {/* Page Layout Selector */}
+                    <div className="relative group">
+                        <button
+                            className="flex items-center gap-2 px-3 h-10 rounded-xl border bg-secondary/50 border-border hover:bg-secondary text-foreground transition-all"
+                            aria-label="Page layout"
+                        >
+                            <HugeiconsIcon icon={GridViewIcon} size={16} strokeWidth={2} />
+                            <span className="text-sm font-medium hidden sm:inline">{pagesPerView} Page{pagesPerView > 1 ? 's' : ''}</span>
+                        </button>
+
+                        {/* Dropdown */}
+                        <div className="
+                            absolute top-full right-0 mt-2 w-36 py-2
+                            bg-popover border border-border rounded-xl shadow-xl
+                            opacity-0 invisible group-hover:opacity-100 group-hover:visible
+                            transition-all duration-200 z-50
+                        ">
+                            {([1, 2, 4] as const).map((count) => (
+                                <button
+                                    key={count}
+                                    onClick={() => setPagesPerView(count)}
+                                    className={`
+                                        w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors
+                                        ${pagesPerView === count
+                                            ? 'bg-primary/10 text-primary font-medium'
+                                            : 'text-foreground hover:bg-secondary'
+                                        }
+                                    `}
+                                >
+                                    {count} Page{count > 1 ? 's' : ''}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <ThemeToggle />
                 </div>
             </header>
 
             {/* PDF Viewer */}
-            <PdfViewer pdf={currentPdf} currentPage={currentPage} onPageChange={goToPage} />
+            <PdfViewer pdf={currentPdf} currentPage={currentPage} pagesPerView={pagesPerView} onPageChange={goToPage} />
         </div>
     );
 }

@@ -5,6 +5,7 @@ import { Effect, Layer } from "effect";
 import { DocumentStorage, type StoredDocument, type DocumentMetadata, DocumentNotFoundError, StorageError } from "@/lib/storage";
 import { PdfParser, MarkdownConverter, PdfServicesLayer, PdfParseError } from "@/lib/pdf-services";
 import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
+import type { PagesPerView } from "@/components/pdf-viewer";
 
 // ============================================================================
 // Types
@@ -16,6 +17,7 @@ interface PdfContextState {
     currentPdf: PDFDocumentProxy | null;
     currentPage: number;
     totalPages: number;
+    pagesPerView: PagesPerView;
     isLoading: boolean;
     error: string | null;
 }
@@ -28,6 +30,7 @@ interface PdfContextActions {
     goToPage: (page: number) => Promise<void>;
     nextPage: () => Promise<void>;
     prevPage: () => Promise<void>;
+    setPagesPerView: (count: PagesPerView) => void;
     copyPageAsMarkdown: () => Promise<string>;
     copyDocumentAsMarkdown: () => Promise<string>;
     refreshDocuments: () => Promise<void>;
@@ -71,6 +74,7 @@ export function PdfProvider({ children }: { children: ReactNode }) {
         currentPdf: null,
         currentPage: 1,
         totalPages: 0,
+        pagesPerView: 1,
         isLoading: false,
         error: null,
     });
@@ -237,6 +241,11 @@ export function PdfProvider({ children }: { children: ReactNode }) {
         await goToPage(state.currentPage - 1);
     }, [goToPage, state.currentPage]);
 
+    // Set pages per view
+    const setPagesPerView = useCallback((count: PagesPerView) => {
+        setState((s) => ({ ...s, pagesPerView: count }));
+    }, []);
+
     // Markdown extraction
     const copyPageAsMarkdown = useCallback(async () => {
         if (!state.currentPdf) {
@@ -289,6 +298,7 @@ export function PdfProvider({ children }: { children: ReactNode }) {
         goToPage,
         nextPage,
         prevPage,
+        setPagesPerView,
         copyPageAsMarkdown,
         copyDocumentAsMarkdown,
         refreshDocuments,
