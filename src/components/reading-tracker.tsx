@@ -80,8 +80,13 @@ export function ReadingTracker({ isOpen, onClose, stats, currentSessionFn, isPau
     // Calculate real stats
     const pagesPerHour = useMemo(() => {
         // Avoid NaN or Infinity
-        if (!elapsed || elapsed === 0 || stats.pagesRead === 0) return 0;
-        const hours = elapsed / (1000 * 60 * 60);
+        if (!elapsed || stats.pagesRead === 0) return 0;
+
+        // Stabilizer: Prevent wild fluctuations in the first minute
+        // Treat duration as at least 60 seconds for the calculation
+        const stableDuration = Math.max(elapsed, 60 * 1000);
+        const hours = stableDuration / (1000 * 60 * 60);
+
         return Math.round(stats.pagesRead / hours);
     }, [elapsed, stats.pagesRead]);
 
