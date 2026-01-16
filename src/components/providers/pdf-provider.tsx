@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Effect, Layer } from "effect";
 import { DocumentStorage, type StoredDocument, type DocumentMetadata, DocumentNotFoundError, StorageError } from "@/lib/storage";
 import { PdfParser, MarkdownConverter, PdfServicesLayer, PdfParseError } from "@/lib/pdf-services";
+import { getLastPage, saveLastPageDebounced, flushLastPage, removeLastPage } from "@/lib/last-page-storage";
 import type { PDFDocumentProxy } from "pdfjs-dist/types/src/display/api";
 import type { PagesPerView } from "@/components/pdf-viewer";
 
@@ -27,9 +28,9 @@ interface PdfContextActions {
     openDocument: (id: string) => Promise<void>;
     closeDocument: () => void;
     deleteDocument: (id: string) => Promise<void>;
-    goToPage: (page: number) => Promise<void>;
-    nextPage: () => Promise<void>;
-    prevPage: () => Promise<void>;
+    goToPage: (page: number) => void;
+    nextPage: () => void;
+    prevPage: () => void;
     setPagesPerView: (count: PagesPerView) => void;
     copyPageAsMarkdown: () => Promise<string>;
     copyDocumentAsMarkdown: () => Promise<string>;
@@ -79,6 +80,12 @@ export function PdfProvider({ children }: { children: ReactNode }) {
         error: null,
     });
 
+    // Refs to always have latest values for cleanup/beforeunload
+    const stateRef = useRef(state);
+    useEffect(() => {
+        stateRef.current = state;
+    }, [state]);
+
     const setLoading = (isLoading: boolean) => setState((s) => ({ ...s, isLoading }));
     const setError = (error: string | null) => setState((s) => ({ ...s, error, isLoading: false }));
 
@@ -101,6 +108,20 @@ export function PdfProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         refreshDocuments();
     }, [refreshDocuments]);
+
+    // Flush last page on tab close/refresh
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            const { currentDocument, currentPage } = stateRef.current;
+            if (currentDocument) {
+                console.log("[PDF Provider] beforeunload: flushing page", currentPage, "for doc", currentDocument.id);
+                flushLastPage(currentDocument.id, currentPage);
+            }
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, []);
 
     // Upload document
     const uploadDocument = useCallback(async (file: File) => {
@@ -163,9 +184,16 @@ export function PdfProvider({ children }: { children: ReactNode }) {
                     const doc = yield* storage.get(id);
                     const pdf = yield* parser.parse(doc.data);
 
-                    yield* storage.updateLastOpened(id, doc.currentPage);
+                    // Get the last page from localStorage (fast, lightweight)
+                    const lastPage = getLastPage(id);
+                    console.log("[PDF Provider] openDocument: getLastPage returned", lastPage, "for doc", id);
+                    // Clamp to valid range
+                    const validPage = Math.min(Math.max(lastPage, 1), doc.totalPages);
+                    console.log("[PDF Provider] openDocument: will start at page", validPage);
 
-                    return { doc, pdf };
+                    yield* storage.updateLastOpened(id, validPage);
+
+                    return { doc, pdf, startPage: validPage };
                 })
             );
 
@@ -173,7 +201,7 @@ export function PdfProvider({ children }: { children: ReactNode }) {
                 ...s,
                 currentDocument: result.doc,
                 currentPdf: result.pdf,
-                currentPage: result.doc.currentPage,
+                currentPage: result.startPage,
                 totalPages: result.doc.totalPages,
                 isLoading: false,
             }));
@@ -184,6 +212,14 @@ export function PdfProvider({ children }: { children: ReactNode }) {
 
     // Close document
     const closeDocument = useCallback(() => {
+        // Use ref to get the LATEST values (avoid stale closure)
+        const { currentDocument, currentPage } = stateRef.current;
+        // Flush the current page to localStorage before closing
+        if (currentDocument) {
+            console.log("[PDF Provider] closeDocument: flushing page", currentPage, "for doc", currentDocument.id);
+            flushLastPage(currentDocument.id, currentPage);
+        }
+
         setState((s) => ({
             ...s,
             currentDocument: null,
@@ -191,7 +227,7 @@ export function PdfProvider({ children }: { children: ReactNode }) {
             currentPage: 1,
             totalPages: 0,
         }));
-    }, []);
+    }, []); // No deps needed - we use stateRef for latest values
 
     // Delete document
     const deleteDocument = useCallback(async (id: string) => {
@@ -204,6 +240,9 @@ export function PdfProvider({ children }: { children: ReactNode }) {
                 })
             );
 
+            // Remove the last page entry from localStorage
+            removeLastPage(id);
+
             if (state.currentDocument?.id === id) {
                 closeDocument();
             }
@@ -215,37 +254,27 @@ export function PdfProvider({ children }: { children: ReactNode }) {
     }, [state.currentDocument?.id, closeDocument, refreshDocuments]);
 
     // Navigation
-    const goToPage = useCallback(async (page: number) => {
+    const goToPage = useCallback((page: number) => {
         if (!state.currentDocument || !state.currentPdf) return;
         if (page < 1 || page > state.totalPages) return;
 
-        const previousPage = state.currentPage;
+        const documentId = state.currentDocument.id;
 
-        // Optimistic update
+        // Update UI immediately
         setState((s) => ({ ...s, currentPage: page }));
 
-        try {
-            await runEffect(
-                Effect.gen(function* () {
-                    const storage = yield* DocumentStorage;
-                    // Note: accessing state.currentDocument.id inside the effect might be safer if passed in
-                    // But here we use the closure variable which should be fine as long as the effect runs immediately
-                    yield* storage.updateLastOpened(state.currentDocument!.id, page);
-                })
-            );
-        } catch (e) {
-            console.error("Failed to update page:", e);
-            // Rollback on error
-            setState((s) => ({ ...s, currentPage: previousPage }));
-        }
-    }, [state.currentDocument, state.currentPdf, state.totalPages, state.currentPage]);
+        // Save to localStorage with debouncing (fast, doesn't block)
+        // This is the ONLY write we do on scroll - no IndexedDB!
+        console.log("[PDF Provider] goToPage: saving page", page, "for doc", documentId);
+        saveLastPageDebounced(documentId, page);
+    }, [state.currentDocument, state.currentPdf, state.totalPages]);
 
-    const nextPage = useCallback(async () => {
-        await goToPage(state.currentPage + 1);
+    const nextPage = useCallback(() => {
+        goToPage(state.currentPage + 1);
     }, [goToPage, state.currentPage]);
 
-    const prevPage = useCallback(async () => {
-        await goToPage(state.currentPage - 1);
+    const prevPage = useCallback(() => {
+        goToPage(state.currentPage - 1);
     }, [goToPage, state.currentPage]);
 
     // Set pages per view

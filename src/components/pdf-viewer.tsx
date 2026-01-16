@@ -31,7 +31,9 @@ export function PdfViewer({ pdf, currentPage, pagesPerView = 1, onPageChange }: 
     const [estimatedPageHeight, setEstimatedPageHeight] = useState(800 * 1.5);
     const [direction, setDirection] = useState(0); // -1 for up, 1 for down
     const previousVisiblePage = useRef(currentPage);
-    const isScrollingRef = useRef(false);
+    // Start with scrolling lock if we need to scroll to a non-first page on mount
+    const isScrollingRef = useRef(currentPage !== 1);
+    const initialScrollDoneRef = useRef(false);
     const { theme } = useTheme();
 
     const isDark = theme === "dark" || (theme === "system" && typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -190,9 +192,13 @@ export function PdfViewer({ pdf, currentPage, pagesPerView = 1, onPageChange }: 
         };
     }, [renderPage, pdf.numPages]);
 
-    // Sync visible page with parent
+    // Sync visible page with parent - but not during initial scroll
     useEffect(() => {
-        if (visiblePage !== currentPage && onPageChange) {
+        // Don't sync during initial scroll
+        if (!initialScrollDoneRef.current && currentPage !== 1) {
+            return;
+        }
+        if (visiblePage !== currentPage && onPageChange && !isScrollingRef.current) {
             const timeout = setTimeout(() => {
                 onPageChange(visiblePage);
             }, 150);
@@ -200,9 +206,33 @@ export function PdfViewer({ pdf, currentPage, pagesPerView = 1, onPageChange }: 
         }
     }, [visiblePage, currentPage, onPageChange]);
 
-    // Scroll to page when currentPage changes externally
-    // Scroll to page when currentPage changes externally
+    // Initial scroll to starting page on mount
     useEffect(() => {
+        if (initialScrollDoneRef.current) return;
+
+        // Use a small delay to ensure pages are rendered
+        const timer = setTimeout(() => {
+            if (currentPage !== 1) {
+                const pageElement = pageRefs.current.get(currentPage);
+                if (pageElement && containerRef.current) {
+                    pageElement.scrollIntoView({ behavior: "auto", block: "start" });
+                    setVisiblePage(currentPage);
+                    previousVisiblePage.current = currentPage;
+                }
+            }
+            // Mark initial scroll as done and release the lock
+            initialScrollDoneRef.current = true;
+            isScrollingRef.current = false;
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, []); // Only run on mount
+
+    // Scroll to page when currentPage changes externally (after initial mount)
+    useEffect(() => {
+        // Skip the initial mount - handled by the effect above
+        if (!initialScrollDoneRef.current) return;
+
         const scrollToPage = async () => {
             if (currentPage !== visiblePage) {
                 const pageElement = pageRefs.current.get(currentPage);
@@ -219,10 +249,10 @@ export function PdfViewer({ pdf, currentPage, pagesPerView = 1, onPageChange }: 
                         previousVisiblePage.current = currentPage;
                     }
 
-                    // 3. Force update our local state to match immediately
+                    // Force update our local state to match immediately
                     setVisiblePage(currentPage);
 
-                    // 4. Keep lock active briefly to let any layout shifts settle 
+                    // Keep lock active briefly to let any layout shifts settle 
                     setTimeout(() => {
                         isScrollingRef.current = false;
                     }, 500);
