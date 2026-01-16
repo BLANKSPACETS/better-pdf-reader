@@ -9,6 +9,7 @@ const PdfViewer = dynamic(() => import("@/components/pdf-viewer").then(mod => mo
     loading: () => <div className="flex-1 bg-muted/20 animate-pulse" />
 });
 import { ThemeToggle } from "@/components/theme-toggle";
+import { WeeklyBarChart } from "@/components/weekly-bar-chart";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
     ArrowLeft01Icon,
@@ -147,6 +148,13 @@ export function ReaderView({ onMenuClick, onShowStats, currentStats, dashboard }
         };
 
         const totalTime = dashboard?.totalLifetimeReadingMs ?? 0;
+        const [todayIdx, setTodayIdx] = useState<number>(-1);
+        useEffect(() => {
+            // Compute today index (0 = Monday, 6 = Sunday) on client only
+            const day = new Date().getDay();
+            const idx = day === 0 ? 6 : day - 1;
+            setTodayIdx(idx);
+        }, []);
         const totalPages = dashboard?.totalLifetimePagesRead ?? 0;
         const totalSessions = dashboard?.totalLifetimeSessions ?? 0;
         const streak = dashboard?.currentStreak ?? 0;
@@ -171,18 +179,23 @@ export function ReaderView({ onMenuClick, onShowStats, currentStats, dashboard }
                     <svg width="800" height="800" viewBox="0 0 800 800">
                         <circle cx="400" cy="400" r="350" fill="none" stroke="white" strokeWidth="1" />
                         <circle cx="400" cy="400" r="300" fill="none" stroke="white" strokeWidth="0.5" />
+                        {/* Generate tick lines with rounded integer coordinates to avoid hydration mismatch */}
                         {[...Array(60)].map((_, i) => {
                             const angle = (i * 6 - 90) * (Math.PI / 180);
                             const isMajor = i % 5 === 0;
                             const innerR = isMajor ? 320 : 340;
                             const outerR = 350;
+                            const x1 = Math.round(400 + innerR * Math.cos(angle));
+                            const y1 = Math.round(400 + innerR * Math.sin(angle));
+                            const x2 = Math.round(400 + outerR * Math.cos(angle));
+                            const y2 = Math.round(400 + outerR * Math.sin(angle));
                             return (
                                 <line
                                     key={i}
-                                    x1={400 + innerR * Math.cos(angle)}
-                                    y1={400 + innerR * Math.sin(angle)}
-                                    x2={400 + outerR * Math.cos(angle)}
-                                    y2={400 + outerR * Math.sin(angle)}
+                                    x1={x1}
+                                    y1={y1}
+                                    x2={x2}
+                                    y2={y2}
                                     stroke="white"
                                     strokeWidth={isMajor ? "2" : "0.5"}
                                 />
@@ -210,109 +223,37 @@ export function ReaderView({ onMenuClick, onShowStats, currentStats, dashboard }
                         </div>
                     </header>
 
-                    {/* Hero Section */}
-                    <div className="flex-1 flex items-center px-8">
-                        <div className="w-full max-w-6xl mx-auto">
-                            {/* Main Title */}
-                            <div className="mb-16">
-                                <h1 className="text-[clamp(3rem,12vw,8rem)] font-bold leading-[0.85] tracking-tighter">
-                                    The Reading<br />
-                                    <span className="text-white/40">Intelligence</span> Hub™
-                                </h1>
-                            </div>
-
-                            {/* Stats + Info Grid */}
-                            <div className="grid grid-cols-12 gap-8">
-                                {/* Left Info */}
-                                <div className="col-span-3">
-                                    <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-4">
-                                        [About]
-                                    </div>
-                                    <p className="text-sm text-white/60 leading-relaxed max-w-xs">
-                                        A minimal, focused reading environment with intelligent analytics.
-                                        Track your reading patterns. Export as markdown. No distractions.
-                                    </p>
-
-                                    {/* Action hint */}
-                                    <div className="mt-8 flex items-center gap-3">
-                                        <div className="w-8 h-px bg-red-500" />
-                                        <span className="text-[10px] uppercase tracking-[0.2em] text-white/60">
-                                            Select a document to begin
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Stats Grid */}
-                                <div className="col-span-5 col-start-5">
-                                    <div className="grid grid-cols-2 gap-x-12 gap-y-8">
-                                        <div>
-                                            <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-2">
-                                                Total Time
-                                            </div>
-                                            <div className="text-4xl font-bold tracking-tighter">
-                                                {formatLifetimeTime(totalTime)}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-2">
-                                                Pages Read
-                                            </div>
-                                            <div className="text-4xl font-bold tracking-tighter">
-                                                {totalPages}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-2">
-                                                Sessions
-                                            </div>
-                                            <div className="text-4xl font-bold tracking-tighter">
-                                                {totalSessions}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-2">
-                                                Current Streak
-                                            </div>
-                                            <div className="text-4xl font-bold tracking-tighter">
-                                                {streak}<span className="text-lg font-normal text-white/40 ml-1">days</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Weekly Chart */}
-                                <div className="col-span-4 col-start-9">
-                                    <div className="text-[10px] uppercase tracking-[0.15em] text-white/40 mb-4">
-                                        [Weekly Activity]
-                                    </div>
-
-                                    {/* Chart */}
-                                    <div className="h-32 flex items-end gap-2">
-                                        {weeklyData.map((val, i) => {
-                                            const height = hasData ? (val / Math.max(peakMinutes, 1)) * 100 : 0;
-                                            const isToday = i === new Date().getDay() - 1 || (new Date().getDay() === 0 && i === 6);
-                                            return (
-                                                <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                                                    <div
-                                                        className={`w-full transition-all ${isToday ? 'bg-red-500' : 'bg-white/20'}`}
-                                                        style={{ height: `${Math.max(height, 4)}%` }}
-                                                    />
-                                                    <span className={`text-[9px] uppercase ${isToday ? 'text-red-500' : 'text-white/30'}`}>
-                                                        {['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* Peak info */}
-                                    {hasData && (
-                                        <div className="mt-4 text-xs text-white/40">
-                                            Peak: <span className="text-white">{peakMinutes}m</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                    {/* Compact Grid Layout */}
+                    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4 p-4">
+                        {/* Intro Card */}
+                        <div className="col-span-2 md:col-span-3 lg:col-span-2 bg-background border border-border p-2 hover:bg-white/10 transition-colors">
+                            <h1 className="text-2xl font-bold tracking-tighter mb-2">Better PDF Reader</h1>
+                            <p className="text-sm text-muted-foreground">Minimal reading with analytics. No distractions.</p>
+                        </div>
+                        {/* Total Time */}
+                        <div className="bg-background border border-border p-2 hover:bg-white/10 transition-colors">
+                            <div className="text-xs uppercase text-muted-foreground mb-1">Total Time</div>
+                            <div className="text-lg font-bold">{formatLifetimeTime(totalTime)}</div>
+                        </div>
+                        {/* Pages Read */}
+                        <div className="bg-background border border-border p-2 hover:bg-white/10 transition-colors">
+                            <div className="text-xs uppercase text-muted-foreground mb-1">Pages</div>
+                            <div className="text-lg font-bold">{totalPages}</div>
+                        </div>
+                        {/* Sessions */}
+                        <div className="bg-background border border-border p-2 hover:bg-white/10 transition-colors">
+                            <div className="text-xs uppercase text-muted-foreground mb-1">Sessions</div>
+                            <div className="text-lg font-bold">{totalSessions}</div>
+                        </div>
+                        {/* Streak */}
+                        <div className="bg-background border border-border p-2 hover:bg-white/10 transition-colors">
+                            <div className="text-xs uppercase text-muted-foreground mb-1">Streak</div>
+                            <div className="text-lg font-bold">{streak}<span className="text-sm font-normal text-muted-foreground ml-1">d</span></div>
+                        </div>
+                        {/* Weekly Activity Chart */}
+                        <div className="col-span-2 md:col-span-3 lg:col-span-2 bg-background border border-border p-3 hover:bg-white/5 transition-colors">
+                            <div className="text-xs uppercase text-muted-foreground mb-3 tracking-wider">Weekly Activity</div>
+                            <WeeklyBarChart data={weeklyData} />
                         </div>
                     </div>
 
