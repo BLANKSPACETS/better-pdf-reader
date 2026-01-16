@@ -31,9 +31,10 @@ interface Command {
 interface CommandPaletteProps {
     open: boolean;
     onClose: () => void;
+    onShowStats?: () => void;
 }
 
-export function CommandPalette({ open, onClose }: CommandPaletteProps) {
+export function CommandPalette({ open, onClose, onShowStats }: CommandPaletteProps) {
     const [query, setQuery] = useState("");
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -139,6 +140,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             action: () => closeDocument(),
             keywords: ["close", "document", "exit", "library", "back", "home"],
             shortcut: "⌘W",
+        },
+        // Stats command
+        {
+            id: "stats-view",
+            label: "Reading Stats",
+            description: "View time tracked and reading velocity",
+            icon: GridViewIcon, // Using GridView temporarily, ideally ChartHistogramIcon
+            action: () => onShowStats?.(),
+            keywords: ["stats", "time", "track", "reading", "clock", "velocity", "graph"],
+            shortcut: "⌘I",
         }] : []),
     ];
 

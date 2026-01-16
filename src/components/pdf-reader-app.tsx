@@ -6,6 +6,8 @@ import { PdfProvider, usePdf } from "@/components/providers/pdf-provider";
 import { LibrarySidebar } from "@/components/library-sidebar";
 import { ReaderView } from "@/components/reader-view";
 import { CommandPalette, useCommandPalette } from "@/components/command-palette";
+import { useReadingStats } from "@/hooks/use-reading-stats";
+import { ReadingTracker } from "@/components/reading-tracker";
 
 function useMediaQuery(query: string) {
     const [matches, setMatches] = useState(false);
@@ -24,10 +26,13 @@ function useMediaQuery(query: string) {
 }
 
 function PdfReaderAppContent() {
-    const { currentDocument } = usePdf(); // Need to change import slightly or just verify how it's done below
+    const { currentDocument } = usePdf();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const commandPalette = useCommandPalette();
     const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+    // Reading stats
+    const readingStats = useReadingStats();
 
     // Automatically open sidebar when no document is selected
     useEffect(() => {
@@ -35,9 +40,6 @@ function PdfReaderAppContent() {
             setSidebarOpen(true);
         }
     }, [currentDocument]);
-
-    // Handle initial state sync with screen size if needed, 
-    // but sidebarOpen=true by default is fine.
 
     const sidebarVariants = {
         mobile: {
@@ -86,11 +88,26 @@ function PdfReaderAppContent() {
                 </AnimatePresence>
 
                 {/* Main content */}
-                <ReaderView onMenuClick={() => setSidebarOpen(true)} />
+                <ReaderView
+                    onMenuClick={() => setSidebarOpen(true)}
+                    onShowStats={() => readingStats.setIsOpen(true)}
+                />
             </div>
 
             {/* Command Palette */}
-            <CommandPalette open={commandPalette.open} onClose={commandPalette.onClose} />
+            <CommandPalette
+                open={commandPalette.open}
+                onClose={commandPalette.onClose}
+                onShowStats={() => readingStats.setIsOpen(true)}
+            />
+
+            {/* Reading Stats Overlay */}
+            <ReadingTracker
+                isOpen={readingStats.isOpen}
+                onClose={() => readingStats.setIsOpen(false)}
+                stats={readingStats.stats}
+                currentSessionFn={readingStats.stats.totalDuration as () => number}
+            />
         </>
     );
 }

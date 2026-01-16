@@ -16,6 +16,7 @@ import {
     GridViewIcon,
     CommandIcon,
     MoreVerticalIcon,
+    ChartHistogramIcon,
 } from "@hugeicons/core-free-icons";
 import {
     DropdownMenu,
@@ -30,9 +31,10 @@ import type { PagesPerView } from "@/components/pdf-viewer";
 
 interface ReaderViewProps {
     onMenuClick?: () => void;
+    onShowStats?: () => void;
 }
 
-export function ReaderView({ onMenuClick }: ReaderViewProps) {
+export function ReaderView({ onMenuClick, onShowStats }: ReaderViewProps) {
     const {
         currentDocument,
         currentPdf,
@@ -164,6 +166,17 @@ export function ReaderView({ onMenuClick }: ReaderViewProps) {
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-2">
+                    {/* Stats Button */}
+                    <button
+                        onClick={onShowStats}
+                        className="w-8 h-8 flex items-center justify-center border border-border hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                        title="Reading Stats"
+                    >
+                        <HugeiconsIcon icon={ChartHistogramIcon} size={14} strokeWidth={2} />
+                    </button>
+
+                    <div className="w-px h-4 bg-border mx-1" />
+
                     {/* Copy Markdown Dropdown */}
                     <DropdownMenu>
                         <DropdownMenuTrigger
