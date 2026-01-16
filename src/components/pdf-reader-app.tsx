@@ -54,10 +54,10 @@ function PdfReaderAppContent() {
         }
     }, [currentDocument]);
 
-    // Handle keyboard shortcut for pausing timer
+    // Handle keyboard shortcut for toggling tracker visibility
     useEffect(() => {
         const handleToggleTimer = () => {
-            readingAnalytics.togglePause();
+            readingAnalytics.setIsOpen(prev => !prev);
         };
 
         window.addEventListener("toggle-reading-timer", handleToggleTimer);

@@ -401,10 +401,6 @@ export function useReadingAnalytics() {
     // Manual Toggle Pause
     // ========================================================================
     const togglePause = useCallback(() => {
-        if (!isOpen) {
-            setIsOpen(true);
-        }
-
         if (isPaused) {
             // Unpause
             if (pauseStartRef.current) {
@@ -420,7 +416,7 @@ export function useReadingAnalytics() {
             setIsPaused(true);
             saveCurrentSession();
         }
-    }, [isOpen, isPaused, saveCurrentSession]);
+    }, [isPaused, saveCurrentSession]);
 
     // ========================================================================
     // Idle Watchdog - Auto-pause after inactivity
