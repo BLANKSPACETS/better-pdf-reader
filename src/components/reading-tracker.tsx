@@ -69,31 +69,37 @@ export function ReadingTracker({ isOpen, onClose, stats, currentSessionFn }: Rea
         return () => clearInterval(timer);
     }, []);
 
-    // Generate waveform data from history or simulate one if empty
-    // We want a "visual" waveform. We can map the last few pages' duration to bar heights.
+    // Calculate real stats
+    const pagesPerHour = useMemo(() => {
+        // Avoid NaN or Infinity
+        if (!elapsed || elapsed === 0 || stats.pagesRead === 0) return 0;
+        const hours = elapsed / (1000 * 60 * 60);
+        return Math.round(stats.pagesRead / hours);
+    }, [elapsed, stats.pagesRead]);
+
+    // Generate REAL waveform data from history
+    // Each bar represents a page. Height = relative duration.
     const waveformBars = useMemo(() => {
-        const bars = 40;
+        const barsCount = 30; // Number of bars to display
         const history = stats.history || [];
-        // Take last N items
-        const rawData = history.slice(-bars);
 
-        // If not enough data, pad with noise
-        const data = new Array(bars).fill(0).map((_, i) => {
-            // If we have history data, map it
-            if (i < rawData.length) {
-                const item = rawData[i];
-                if (item) {
-                    // Logarithmic scale for better visual range
-                    return Math.min(100, Math.log(item.duration + 1) * 8);
-                }
-            }
-            // Ambient noise
-            return Math.random() * 15 + 5;
+        // If no history, show flat line
+        if (history.length === 0) {
+            return new Array(barsCount).fill({ height: 5, page: 0 }); // 5% height baseline
+        }
+
+        // Get last N pages
+        const recentPages = history.slice(-barsCount);
+
+        // Find max duration for scaling (avoid div by zero)
+        const maxDuration = Math.max(...recentPages.map(p => p.duration), 1000); // min 1s baseline
+
+        return recentPages.map(page => {
+            // Scale 5% to 100%
+            const height = Math.max(5, (page.duration / maxDuration) * 100);
+            return { height, page: page.page };
         });
-
-        // Add a "live" bar at the end that pulses
-        return data;
-    }, [stats.history, elapsed]); // Re-calc on elapsed change to animate "live" feel roughly
+    }, [stats.history]);
 
     return (
         <AnimatePresence>
@@ -118,7 +124,7 @@ export function ReadingTracker({ isOpen, onClose, stats, currentSessionFn }: Rea
                         />
 
                         {/* Screen Area */}
-                        <div className="bg-[#1A1A1A] rounded-[24px] h-[340px] flex flex-col relative overflow-hidden shadow-inner ring-1 ring-black/5">
+                        <div className="bg-[#1A1A1A] rounded-[24px] h-[340px] flex flex-col relative overflow-hidden shadow-inner ring-1 ring-black/5 mt-4">
                             {/* Screen Glare/Texture Overlay */}
                             <div className="absolute inset-0 bg-white/[0.02] mix-blend-overlay pointer-events-none" />
                             <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent pointer-events-none" />
@@ -130,44 +136,71 @@ export function ReadingTracker({ isOpen, onClose, stats, currentSessionFn }: Rea
                                     {!isPaused ? (
                                         <span className="flex items-center gap-1.5 text-red-500 animate-pulse">
                                             <div className="w-1.5 h-1.5 rounded-full bg-current" />
-                                            REC
+                                            RECORDING
                                         </span>
                                     ) : (
-                                        <span className="text-neutral-600">PAUSED</span>
+                                        <span className="text-neutral-600 flex items-center gap-1.5">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-neutral-600" />
+                                            PAUSED
+                                        </span>
                                     )}
                                     <HugeiconsIcon icon={BatteryFullIcon} size={14} className="text-neutral-400 ml-1" />
                                 </div>
                             </div>
 
-                            {/* Waveform Visualization */}
-                            <div className="flex-1 flex items-center justify-center gap-[2px] px-6 opacity-80">
-                                {waveformBars.map((height, i) => (
-                                    <div
-                                        key={i}
-                                        className="w-1 rounded-full bg-neutral-600 transition-all duration-300"
-                                        style={{
-                                            height: `${height}%`,
-                                            opacity: i === waveformBars.length - 1 ? 1 : 0.3 + (height / 200),
-                                            backgroundColor: i === waveformBars.length - 1 ? '#ef4444' : undefined // Red tip
-                                        }}
-                                    />
-                                ))}
-                                {/* Center Line */}
-                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <div className="w-full h-px bg-red-500/10" />
-                                </div>
-                                {/* Playhead */}
-                                <div className="absolute h-16 w-0.5 bg-red-500 rounded-full left-1/2 -translate-x-1/2 shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+                            {/* Waveform Visualization (Real Data) */}
+                            <div className="flex-1 flex items-end justify-center gap-[3px] px-6 pb-2 opacity-90 overflow-hidden">
+                                {waveformBars.length > 0 ? (
+                                    waveformBars.map((bar, i) => (
+                                        <div
+                                            key={i}
+                                            className="relative flex-1 group/bar"
+                                        >
+                                            <div
+                                                className="w-full rounded-sm bg-neutral-700 transition-all duration-500 ease-out flex items-end justify-center"
+                                                style={{
+                                                    height: `${bar.height / 2 /* scale visual height down slightly to fit */}px`,
+                                                    minHeight: '4px',
+                                                    backgroundColor: !isPaused && i === waveformBars.length - 1 ? '#ef4444' : undefined
+                                                }}
+                                            />
+                                            {/* Tooltip for page number */}
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-[9px] bg-white text-black px-1 rounded opacity-0 group-hover/bar:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">
+                                                Page {bar.page}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="flex items-center justify-center w-full h-full text-neutral-700 text-[10px] font-mono tracking-widest uppercase">
+                                        Waiting for input...
+                                    </div>
+                                )}
+
+                                {/* Center Line / Playhead */}
+                                <div className="absolute inset-x-0 bottom-8 h-px bg-white/5 pointer-events-none" />
                             </div>
 
-                            {/* Main Timer */}
-                            <div className="px-6 pb-8 text-center">
-                                <span className="text-5xl font-light tracking-tighter tabular-nums text-white font-sans">
+                            {/* Main Timer & Metrics */}
+                            <div className="px-6 pb-6 text-center">
+                                {/* Timer */}
+                                <span className={cn(
+                                    "text-5xl font-light tracking-tighter tabular-nums font-sans transition-colors block mb-4",
+                                    isPaused ? "text-neutral-500" : "text-white"
+                                )}>
                                     {formatTime(elapsed)}
                                 </span>
-                                <p className="text-[10px] text-neutral-500 font-mono tracking-[0.2em] mt-2">
-                                    SESSION DURATION
-                                </p>
+
+                                {/* Real Stats Row */}
+                                <div className="flex items-center justify-center divide-x divide-neutral-800 border-t border-neutral-800 pt-3">
+                                    <div className="px-4 flex flex-col items-center">
+                                        <span className="text-xl font-medium text-white tabular-nums">{stats.pagesRead}</span>
+                                        <span className="text-[9px] text-neutral-500 font-mono tracking-wider uppercase">PAGES</span>
+                                    </div>
+                                    <div className="px-4 flex flex-col items-center">
+                                        <span className="text-xl font-medium text-white tabular-nums">{pagesPerHour}</span>
+                                        <span className="text-[9px] text-neutral-500 font-mono tracking-wider uppercase">PG/HR</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -179,12 +212,12 @@ export function ReadingTracker({ isOpen, onClose, stats, currentSessionFn }: Rea
                                 className="bg-[#E0E0E0] hover:bg-[#D6D6D6] rounded-[20px] flex items-center justify-center shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_2px_4px_rgba(0,0,0,0.05)] border-t border-white transition-all active:scale-[0.98] active:shadow-inner group/btn"
                             >
                                 <div className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] transition-colors",
-                                    isPaused ? "bg-red-500/10 text-red-500" : "bg-transparent text-neutral-400"
+                                    "w-10 h-10 rounded-full flex items-center justify-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] transition-all duration-300",
+                                    !isPaused ? "bg-red-500/10 text-red-500" : "bg-transparent text-neutral-400"
                                 )}>
                                     <div className={cn(
                                         "rounded-full transition-all duration-300",
-                                        isPaused ? "w-3 h-3 bg-red-500" : "w-3 h-3 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
+                                        !isPaused ? "w-3 h-3 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]" : "w-3 h-3 bg-neutral-400"
                                     )} />
                                 </div>
                             </button>
@@ -213,10 +246,10 @@ export function ReadingTracker({ isOpen, onClose, stats, currentSessionFn }: Rea
                             </div>
                         </div>
 
-                        {/* Speaker Grille Detail */}
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-0.5 opacity-20 pointer-events-none">
-                            {[...Array(12)].map((_, i) => (
-                                <div key={i} className="w-0.5 h-0.5 rounded-full bg-black" />
+                        {/* Speaker Grille Detail - More realistic mesh */}
+                        <div className="absolute top-5 left-1/2 -translate-x-1/2 flex gap-1 opacity-20 pointer-events-none w-32 justify-center flex-wrap">
+                            {[...Array(24)].map((_, i) => (
+                                <div key={i} className="w-[2px] h-[2px] rounded-full bg-black/60" />
                             ))}
                         </div>
                     </div>
