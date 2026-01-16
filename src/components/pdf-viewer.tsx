@@ -299,8 +299,7 @@ export function PdfViewer({ pdf, currentPage, pagesPerView = 1, onPageChange }: 
                     </button>
                 </div>
 
-                {/* Page indicator */}
-                {/* Page indicator */}
+                {/* Page indicator
                 <div className="inline-flex items-center gap-1.5 border border-border bg-background/95 backdrop-blur-sm px-2.5 py-1.5 pointer-events-auto overflow-hidden h-8 min-w-[3.5rem] justify-center">
                     <div className="relative h-[1.2em] w-[2ch] text-center">
                         <AnimatePresence mode="popLayout" initial={false} custom={direction}>
@@ -336,7 +335,7 @@ export function PdfViewer({ pdf, currentPage, pagesPerView = 1, onPageChange }: 
                     </div>
                     <span className="text-[10px] font-mono text-muted-foreground">/</span>
                     <span className="text-[10px] font-mono text-muted-foreground">{pdf.numPages}</span>
-                </div>
+                </div> */}
             </div>
 
             {/* Scrollable PDF container */}

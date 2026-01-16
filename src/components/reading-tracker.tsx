@@ -8,7 +8,6 @@ import {
     PauseIcon,
     RefreshIcon,
     ViewOffSlashIcon,
-    SquareLock02Icon
 } from "@hugeicons/core-free-icons";
 import type { ReadingSession } from "@/hooks/use-reading-stats";
 import { cn } from "@/lib/utils";
