@@ -74,15 +74,21 @@ export function PdfViewer({ pdf, currentPage, pagesPerView = 1, onPageChange }: 
             }
 
             const viewport = page.getViewport({ scale });
+            // HiDPI / Retina display support
+            const dpr = window.devicePixelRatio || 1;
 
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+            canvas.height = Math.floor(viewport.height * dpr);
+            canvas.width = Math.floor(viewport.width * dpr);
+            canvas.style.width = `${Math.floor(viewport.width)}px`;
+            canvas.style.height = `${Math.floor(viewport.height)}px`;
+
             context.clearRect(0, 0, canvas.width, canvas.height);
 
             const renderTask = page.render({
                 canvasContext: context,
                 viewport,
                 canvas,
+                transform: [dpr, 0, 0, dpr, 0, 0],
             });
 
             renderTasksRef.current.set(pageNum, renderTask);
