@@ -214,7 +214,7 @@ export function LibrarySidebar({ onDocumentOpen }: LibrarySidebarProps) {
 
                                             <div className="flex-1 min-w-0 space-y-1">
                                                 <p className={`text-xs truncate leading-tight transition-colors ${isActive ? "text-sidebar-foreground font-medium" : "text-muted-foreground group-hover:text-sidebar-foreground"}`}>
-                                                    {doc.name}
+                                                    {doc.name.length > 30 ? doc.name.slice(0, 30) + "..." : doc.name}
                                                 </p>
                                                 <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60 uppercase tracking-wider">
                                                     <span>{doc.totalPages} PG</span>

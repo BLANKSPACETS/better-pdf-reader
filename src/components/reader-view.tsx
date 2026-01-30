@@ -213,7 +213,7 @@ export function ReaderView({ onMenuClick, onShowStats, currentStats, dashboard }
                         <div className="flex items-center gap-4">
                             {/* Barcode decoration */}
                             <div className="flex gap-[2px] h-8">
-                                {[2,3,2,8,0,9,0,1,0,2,0,6].map((w, i) => (
+                                {[2, 3, 2, 8, 0, 9, 0, 1, 0, 2, 0, 6].map((w, i) => (
                                     <div key={i} className="bg-foreground h-full" style={{ width: `${w * 2}px` }} />
                                 ))}
                             </div>
@@ -455,7 +455,7 @@ export function ReaderView({ onMenuClick, onShowStats, currentStats, dashboard }
                     <div className="min-w-0">
                         <div className="flex items-center gap-3">
                             <h1 className="font-mono font-bold text-foreground truncate text-sm tracking-tight uppercase">
-                                {currentDocument.name}
+                                {currentDocument.name.length > 30 ? currentDocument.name.slice(0, 30) + "..." : currentDocument.name}
                             </h1>
                             <span className="font-mono text-[9px] text-red-500 uppercase tracking-wider border border-red-500/20 bg-red-500/10 px-1 py-0.5 rounded-[2px]">
                                 PDF
