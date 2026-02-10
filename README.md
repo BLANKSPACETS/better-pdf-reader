@@ -2,6 +2,7 @@
   <img src="src/app/icon.svg" alt="Better PDF Reader Logo" width="100" height="100" />
 </p>
 
+
 <h1 align="center">BETTER PDF READER</h1>
 
 <p align="center">
